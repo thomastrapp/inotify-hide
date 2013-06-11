@@ -5,7 +5,7 @@ project(inotify-hide)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 
-add_executable(inotify-hide inotify-hide.c)
+add_executable(inotify-hide main.c inoh/print.c inoh/file.c inoh/ino-hide.c)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
   add_definitions("-std=c99" "-pedantic" "-Wall" "-Wshadow" "-Wpointer-arith" "-Wcast-qual" "-Wstrict-prototypes")

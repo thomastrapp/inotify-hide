@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
 {
   if( argc < 2 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0 )
   {
-    print_error("Usage: %s files ...", argv[0]);
+    print_error("Usage: %s file", argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -94,31 +94,17 @@ int main(int argc, char ** argv)
     exit(EXIT_FAILURE);
   }
 
-  bool at_least_one_watch = false;
-  for(int i = 1; i < argc; ++i)
+  if( is_writable_file(argv[1]) && 
+      is_regular_file(argv[1])     )
   {
-    if( is_writable_file(argv[i]) && 
-        is_regular_file(argv[i])     )
+    if( inotify_add_watch(inotify_fd, argv[1], IN_ALL_EVENTS) == -1 )
     {
-      if( inotify_add_watch(inotify_fd, argv[i], IN_ALL_EVENTS) == -1 )
-      {
-        print_error("inotify_add_watch failed for %s (%s)", argv[i], strerror(errno));
-      }
-      else
-      {
-        at_least_one_watch = true;
-      }
-    }
-    else
-    {
-      print_error("File %s is either not a regular file or not writable", argv[i]);
+      print_error("inotify_add_watch failed for %s (%s)", argv[1], strerror(errno));
     }
   }
-
-  if( !at_least_one_watch )
+  else
   {
-    close(inotify_fd);
-    exit(EXIT_FAILURE);
+    print_error("File %s is either not a regular file or not writable", argv[1]);
   }
 
   // struct inotify_event may contain (optionally) the name

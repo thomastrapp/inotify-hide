@@ -99,12 +99,14 @@ int main(int argc, char ** argv)
   {
     if( inotify_add_watch(inotify_fd, argv[1], IN_ALL_EVENTS) == -1 )
     {
-      print_error("inotify_add_watch failed for %s (%s)", argv[1], strerror(errno));
+      print_error("inotify_add_watch failed (%s)", strerror(errno));
+      exit(EXIT_FAILURE);
     }
   }
   else
   {
     print_error("File %s is either not a regular file or not writable", argv[1]);
+    exit(EXIT_FAILURE);
   }
 
   // struct inotify_event may contain (optionally) the name

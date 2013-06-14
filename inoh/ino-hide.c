@@ -29,16 +29,28 @@ bool ih_set_file(struct ino_hide * ih, const char * target_fname)
   if( ih == NULL || target_fname == NULL )
     return false;
 
+  // The field to be hidden must be writable, since
+  // we will delete it (and restore it later)
   if( is_writable_file(target_fname) && 
       is_regular_file(target_fname)     )
   {
-    if( inotify_add_watch(ih->inotify_fd, target_fname, IN_ALL_EVENTS) == -1 )
+    // dirname(char * path) may modify the contents of path,
+    // so we create a copy here
+    char * fname_copy = strdup(target_fname);
+    char * dir = dirname(fname_copy);
+
+    print_info("Adding watch for %s", dir);
+
+    if( inotify_add_watch(ih->inotify_fd, dir, IN_OPEN|IN_EXCL_UNLINK) == -1 )
     {
       print_error("inotify_add_watch failed (%s)", strerror(errno));
+      free(fname_copy);
+      return false;
     }
     else
     {
       ih->target_fname = target_fname;
+      free(fname_copy);
       return true;
     }
   }
@@ -86,7 +98,133 @@ bool ih_create_buf_events(struct ino_hide * ih)
   return true;
 }
 
-bool ih_loop_events(struct ino_hide * ih)
+bool ih_loop_delete_restore_file_on_event(struct ino_hide * ih)
+{
+  if( ih == NULL )
+    return false;
+
+  if( !ih_open_target_file(ih) )
+    return false;
+
+  while( true )
+  {
+    if( ih_block_until_open(ih) )
+    {
+      if( !ih_delete_file_and_wait(ih) )
+      {
+        return false;
+      }
+
+      if( !ih_restore_file(ih) )
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+bool ih_open_target_file(struct ino_hide * ih)
+{
+  if( ih == NULL )
+    return false;
+
+  int target_fd = open(ih->target_fname, O_RDONLY);
+
+  if( target_fd == -1 )
+  {
+    print_error("Failed to open file %s (%s)", ih->target_fname, strerror(errno));
+    return false;
+  }
+
+  ih->target_fd = target_fd;
+  print_info("Opened file %s", ih->target_fname);
+
+  return true;
+}
+
+bool ih_delete_file_and_wait(struct ino_hide * ih)
+{
+  if( ih == NULL )
+    return false;
+
+  if( unlink(ih->target_fname) == -1 )
+  {
+    print_error("Failed unlinking file (%s)", strerror(errno));
+    return false;
+  }
+
+  print_info("File %s unlinked, sleeping", ih->target_fname);
+  sleep(2);
+  print_info("Woke up");
+
+  return true;
+}
+
+bool ih_restore_file(struct ino_hide * ih)
+{
+  FILE * tmp = tmpfile();
+  if( tmp == NULL )
+  {
+    print_error("Failed opening temporary file (%s)", strerror(errno));
+    return false;
+  }
+
+  int tmp_fd = fileno(tmp);
+  if( tmp_fd == -1 )
+  {
+    print_error("fileno failed (%s)", strerror(errno));
+    return false;
+  }
+
+  print_info("Copying hiddenfile to temporary");
+  if( !copy_fd(ih->target_fd, tmp_fd) )
+  {
+    return false;
+  }
+
+  if( close(ih->target_fd) == -1 )
+  {
+    print_error("Close hiddenfile failed (%s)", strerror(errno));
+  }
+
+  print_info("Recreating file");
+  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL);
+  if( new_fd == -1 )
+  {
+    print_error("Creating file %s failed (%s)", ih->target_fname, strerror(errno));
+    return false;
+  }
+
+  if( lseek(tmp_fd, 0, SEEK_SET) != 0 )
+  {
+    print_error("Failed seeking to offset 0 on temporary (%s)", strerror(errno));
+    return false;
+  }
+
+  if( !copy_fd(tmp_fd, new_fd) )
+  {
+    return false;
+  }
+
+  if( close(tmp_fd) == -1 )
+  {
+    print_error("Close tmpfile failed (%s)", strerror(errno));
+  }
+
+  if( lseek(new_fd, 0, SEEK_SET) != 0 )
+  {
+    print_error("Failed seeking to offset 0 on hiddenfile (%s)", strerror(errno));
+    return false;
+  }
+
+  ih->target_fd = new_fd;
+
+  return true;
+}
+
+bool ih_block_until_open(struct ino_hide * ih)
 {
   if( ih == NULL )
     return false;
@@ -94,53 +232,35 @@ bool ih_loop_events(struct ino_hide * ih)
   ssize_t bytes_read = 0;
   char * p_buf_events = NULL;
   struct inotify_event * event = NULL;
-  while( true )
+  bool need_to_hide = false;
+
+  bytes_read = read(ih->inotify_fd, ih->buf_events, ih->buf_events_len);
+
+  if( bytes_read < 1 )
   {
-    bytes_read = read(ih->inotify_fd, ih->buf_events, ih->buf_events_len);
-
-    if( bytes_read < 1 )
-    {
-      print_error("read inotify_fd failed (%s)", strerror(errno));
-      return false;
-    }
-
-    p_buf_events = ih->buf_events;
-    while( p_buf_events < ih->buf_events + bytes_read )
-    {
-      event = (struct inotify_event *) p_buf_events;
-      ih_print_event(event);
-
-      p_buf_events += sizeof(struct inotify_event) + event->len;
-    }
+    print_error("read inotify_fd failed (%s)", strerror(errno));
+    return false;
   }
 
-  return true;
+  p_buf_events = ih->buf_events;
+  while( p_buf_events < ih->buf_events + bytes_read )
+  {
+    event = (struct inotify_event *) p_buf_events;
+
+    // event->len will only be 0 if the watched directory itself 
+    // is subject to the event (filter out noise from the directory's 
+    // children)
+    need_to_hide |= ( event->mask & IN_ISDIR ) && event->len == 0;
+
+    print_event(event);
+    print_info("Need to hide: %d", need_to_hide);
+
+    p_buf_events += sizeof(struct inotify_event) + event->len;
+  }
+
+  return need_to_hide;
 }
 
-void ih_print_event(struct inotify_event * i)
-{
-  if( i == NULL )
-    return;
-
-  printf("Event ");
-  if (i->mask & IN_ACCESS)        printf("IN_ACCESS ");
-  if (i->mask & IN_ATTRIB)        printf("IN_ATTRIB ");
-  if (i->mask & IN_CLOSE_NOWRITE) printf("IN_CLOSE_NOWRITE ");
-  if (i->mask & IN_CLOSE_WRITE)   printf("IN_CLOSE_WRITE ");
-  if (i->mask & IN_CREATE)        printf("IN_CREATE ");
-  if (i->mask & IN_DELETE)        printf("IN_DELETE ");
-  if (i->mask & IN_DELETE_SELF)   printf("IN_DELETE_SELF ");
-  if (i->mask & IN_IGNORED)       printf("IN_IGNORED ");
-  if (i->mask & IN_ISDIR)         printf("IN_ISDIR ");
-  if (i->mask & IN_MODIFY)        printf("IN_MODIFY ");
-  if (i->mask & IN_MOVE_SELF)     printf("IN_MOVE_SELF ");
-  if (i->mask & IN_MOVED_FROM)    printf("IN_MOVED_FROM ");
-  if (i->mask & IN_MOVED_TO)      printf("IN_MOVED_TO ");
-  if (i->mask & IN_OPEN)          printf("IN_OPEN ");
-  if (i->mask & IN_Q_OVERFLOW)    printf("IN_Q_OVERFLOW ");
-  if (i->mask & IN_UNMOUNT)       printf("IN_UNMOUNT ");
-  printf("\n");
-}
 
 void ih_cleanup(struct ino_hide * ih)
 {

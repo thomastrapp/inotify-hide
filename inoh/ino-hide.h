@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
+#include <libgen.h>
 #include <sys/inotify.h>
 
 #include "inoh/file.h"
@@ -23,7 +24,11 @@ struct ino_hide
 bool ih_init(struct ino_hide *);
 bool ih_set_file(struct ino_hide *, const char *);
 bool ih_create_buf_events(struct ino_hide *);
-bool ih_loop_events(struct ino_hide *);
+bool ih_loop_delete_restore_file_on_event(struct ino_hide *);
+bool ih_delete_file_and_wait(struct ino_hide *);
+bool ih_open_target_file(struct ino_hide *);
+bool ih_restore_file(struct ino_hide *);
+bool ih_block_until_open(struct ino_hide *);
 void ih_print_event(struct inotify_event *);
 void ih_cleanup(struct ino_hide *);
 

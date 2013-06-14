@@ -8,11 +8,14 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #include "inoh/print.h"
 
 bool is_writable_file(const char *);
 bool is_regular_file(const char *);
+bool copy_fd(int, int);
 size_t get_max_name_len(void);
 
 #endif

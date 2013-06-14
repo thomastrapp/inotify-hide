@@ -18,6 +18,36 @@ bool is_regular_file(const char * file)
   return S_ISREG(buf_stat.st_mode);
 }
 
+bool copy_fd(int fd_src, int fd_target)
+{
+  if( fd_src < 0 || fd_target < 0 )
+    return false;
+
+  char buffer[8192] = {0};
+  ssize_t byte_count = 0;
+  while( true )
+  {
+    byte_count = read(fd_src, &buffer, sizeof(buffer));
+
+    if( byte_count == 0 )
+      return true;
+
+    if( byte_count == -1 )
+    {
+      print_error("Failed reading file (%s)", strerror(errno));
+      return false;
+    }
+
+    if( write(fd_target, &buffer, byte_count) != byte_count )
+    {
+      print_error("Failed writing file (%s)", strerror(errno));
+      return false;
+    }
+  }
+
+  return false;
+}
+
 size_t get_max_name_len()
 {
   // struct inotify_event may contain (optionally) the name

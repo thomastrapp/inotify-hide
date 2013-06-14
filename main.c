@@ -6,12 +6,17 @@
 #include "inoh/ino-hide.h"
 
 // Todo: 
-// 1. add watches for dirname(file): dir IN_OPEN
-// 2. open file, keep handle
-// 3. watch is triggered
-// 4. delete file (inode will still be there)
-// 5. Wait some time 
-// 6. restore file (copy fd to filename)
+// - save and restore file permissions (stat)
+// - print_info
+// - restore file atexit if in limbo
+// - register ctrl c to call atexit
+// - restore file in child process? send signal if new event 
+//   arrived while in sleep time, to restart sleep time.
+//   Send signal to restore immediately (and join) => shutdown.
+//   See sigtimedwait!
+// Todo fancy:
+// - options: --verbose (print info, default be silent)
+// - nonblocking read of notify events (O_NONBLOCK, fork or pthreads)?
 int main(int argc, char ** argv)
 {
   if( argc < 2 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0 )
@@ -37,7 +42,7 @@ int main(int argc, char ** argv)
     exit(EXIT_FAILURE);
   }
 
-  if( !ih_loop_events(&ih) )
+  if( !ih_loop_delete_restore_file_on_event(&ih) )
   {
     exit(EXIT_FAILURE);
   }

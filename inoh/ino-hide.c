@@ -10,6 +10,9 @@ bool ih_init(struct ino_hide * ih)
   ih->inotify_fd = -1;
   ih->buf_events = NULL;
   ih->buf_events_len = 0;
+  ih->st_mode = -1;
+  ih->st_uid = -1;
+  ih->st_gid = -1;
 
   int inotify_fd = inotify_init();
 
@@ -51,7 +54,7 @@ bool ih_set_file(struct ino_hide * ih, const char * target_fname)
     {
       ih->target_fname = target_fname;
       free(fname_copy);
-      return true;
+      return ih_save_file_permissions(ih);
     }
   }
   else
@@ -60,6 +63,23 @@ bool ih_set_file(struct ino_hide * ih, const char * target_fname)
   }
 
   return false;
+}
+
+bool ih_save_file_permissions(struct ino_hide * ih)
+{
+  struct stat buf_stat;
+
+  if( stat(ih->target_fname, &buf_stat) != 0 )
+  {
+    print_error("stat %s failed (%s)", ih->target_fname, strerror(errno));
+    return false;
+  }
+
+  ih->st_mode = buf_stat.st_mode;
+  ih->st_uid = buf_stat.st_uid;
+  ih->st_gid = buf_stat.st_gid;
+
+  return true;
 }
 
 bool ih_create_buf_events(struct ino_hide * ih)
@@ -190,12 +210,14 @@ bool ih_restore_file(struct ino_hide * ih)
   }
 
   print_info("Recreating file");
-  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL);
+  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->st_mode);
   if( new_fd == -1 )
   {
     print_error("Creating file %s failed (%s)", ih->target_fname, strerror(errno));
     return false;
   }
+
+  ih_restore_file_ownership(new_fd, ih);
 
   if( lseek(tmp_fd, 0, SEEK_SET) != 0 )
   {
@@ -220,6 +242,17 @@ bool ih_restore_file(struct ino_hide * ih)
   }
 
   ih->target_fd = new_fd;
+
+  return true;
+}
+
+bool ih_restore_file_ownership(int target_fd, struct ino_hide * ih)
+{
+  if( fchown(target_fd, ih->st_uid, ih->st_gid) == -1 )
+  {
+    print_error("Failed restoring file ownership (%s)", strerror(errno));
+    return false;
+  }
 
   return true;
 }

@@ -47,6 +47,12 @@ int main(int argc, char ** argv)
     exit(EXIT_FAILURE);
   }
 
+  if( ih_worker_is_alive(&ih) )
+  {
+    kill(ih.worker_pid, SIGUSR1);
+    wait(/* int * stat_loc */ NULL);
+  }
+
   ih_cleanup(&ih);
 
   return EXIT_SUCCESS;

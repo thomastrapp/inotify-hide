@@ -1,6 +1,6 @@
 #include "inoh/ino-hide.h"
 
-bool ih_init(struct ino_hide * ih)
+bool ih_init(struct ino_hide * ih, const char * target_fname)
 {
   if( ih == NULL )
     return false;
@@ -15,6 +15,14 @@ bool ih_init(struct ino_hide * ih)
   ih->st_gid = -1;
   ih->worker_pid = -1;
 
+  return 
+       ih_init_inotify(ih) 
+    && ih_create_buf_events(ih)
+    && ih_register_file(ih, target_fname);
+}
+
+bool ih_init_inotify(struct ino_hide * ih)
+{
   int inotify_fd = inotify_init();
 
   if( inotify_fd == -1 )
@@ -28,7 +36,7 @@ bool ih_init(struct ino_hide * ih)
   return true;
 }
 
-bool ih_set_file(struct ino_hide * ih, const char * target_fname)
+bool ih_register_file(struct ino_hide * ih, const char * target_fname)
 {
   if( ih == NULL || target_fname == NULL )
     return false;
@@ -119,7 +127,7 @@ bool ih_create_buf_events(struct ino_hide * ih)
   return true;
 }
 
-bool ih_loop_delete_restore_file_on_event(struct ino_hide * ih)
+bool ih_hide_file(struct ino_hide * ih)
 {
   if( ih == NULL )
     return false;
@@ -136,9 +144,7 @@ bool ih_loop_delete_restore_file_on_event(struct ino_hide * ih)
       else
       {
         if( !ih_worker_delayed_delete(ih) )
-        {
           return false;
-        }
       }
     }
   }
@@ -352,16 +358,11 @@ bool ih_restore_file(struct ino_hide * ih)
     return false;
   }
 
-  print_info("Copying hiddenfile to temporary");
   if( !copy_fd(ih->target_fd, tmp_fd) )
-  {
     return false;
-  }
 
   if( close(ih->target_fd) == -1 )
-  {
     print_error("Close hiddenfile failed (%s)", strerror(errno));
-  }
 
   print_info("Recreating file");
   int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->st_mode);
@@ -371,42 +372,19 @@ bool ih_restore_file(struct ino_hide * ih)
     return false;
   }
 
-  ih_restore_file_ownership(new_fd, ih);
+  set_file_ownership(new_fd, ih->st_uid, ih->st_gid);
 
-  if( lseek(tmp_fd, 0, SEEK_SET) != 0 )
-  {
-    print_error("Failed seeking to offset 0 on temporary (%s)", strerror(errno));
+  if( !rewind_fd(tmp_fd) )
     return false;
-  }
-
   if( !copy_fd(tmp_fd, new_fd) )
-  {
     return false;
-  }
+  if( !rewind_fd(new_fd) )
+    return false;
 
   if( close(tmp_fd) == -1 )
-  {
     print_error("Close tmpfile failed (%s)", strerror(errno));
-  }
-
-  if( lseek(new_fd, 0, SEEK_SET) != 0 )
-  {
-    print_error("Failed seeking to offset 0 on hiddenfile (%s)", strerror(errno));
-    return false;
-  }
 
   ih->target_fd = new_fd;
-
-  return true;
-}
-
-bool ih_restore_file_ownership(int target_fd, struct ino_hide * ih)
-{
-  if( fchown(target_fd, ih->st_uid, ih->st_gid) == -1 )
-  {
-    print_error("Failed restoring file ownership (%s)", strerror(errno));
-    return false;
-  }
 
   return true;
 }
@@ -425,7 +403,7 @@ bool ih_block_until_need_to_hide(struct ino_hide * ih)
 
   if( bytes_read < 1 )
   {
-    print_error("read inotify_fd failed (%s)", strerror(errno));
+    print_error("Reading inotify_fd failed (%s)", strerror(errno));
     return false;
   }
 
@@ -440,10 +418,11 @@ bool ih_block_until_need_to_hide(struct ino_hide * ih)
     need_to_hide |= ( event->mask & IN_ISDIR ) && event->len == 0;
 
     print_event(event);
-    print_info("Need to hide: %d", need_to_hide);
 
     p_buf_events += sizeof(struct inotify_event) + event->len;
   }
+
+  print_info("Need to hide: %d", need_to_hide);
 
   return need_to_hide;
 }
@@ -455,7 +434,8 @@ void ih_cleanup(struct ino_hide * ih)
 
   if( ih->inotify_fd != -1 )
   {
-    close(ih->inotify_fd);
+    if( close(ih->inotify_fd) == -1 )
+      print_error("Failed closing inotify_fd (%s)", strerror(errno));
     ih->inotify_fd = -1;
   }
 

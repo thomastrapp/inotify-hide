@@ -48,13 +48,39 @@ bool copy_fd(int fd_src, int fd_target)
   return false;
 }
 
+bool rewind_fd(int fd)
+{
+  if( lseek(fd, 0, SEEK_SET) != 0 )
+  {
+    print_error("Failed seeking to file offset 0 (%s)", strerror(errno));
+    return false;
+  }
+
+  return true;
+}
+
+bool set_file_ownership(int fd, uid_t uid, gid_t gid)
+{
+  if( fchown(fd, uid, gid) == -1 )
+  {
+    print_error("Failed setting file ownership %d:%d (%s)", 
+      uid,
+      gid,
+      strerror(errno)
+    );
+    return false;
+  }
+
+  return true;
+}
+
 size_t get_max_name_len()
 {
   // struct inotify_event may contain (optionally) the name
   // of the file that is subject to the event. To satisfy 
   // the arbitrary size of the filename, we lazily allocate 
   // enough space to hold any filename length possible on this 
-  // system (_PC_NAME_MAX).
+  // filesystem (_PC_NAME_MAX).
   
   // pathconf won't set errno if there is no limit
   errno = 0;

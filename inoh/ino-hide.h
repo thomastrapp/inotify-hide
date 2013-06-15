@@ -32,11 +32,12 @@ struct ino_hide
   pid_t worker_pid;
 };
 
-bool ih_init(struct ino_hide *);
-bool ih_set_file(struct ino_hide *, const char *);
+bool ih_init(struct ino_hide *, const char *);
+bool ih_init_inotify(struct ino_hide *);
+bool ih_register_file(struct ino_hide *, const char *);
 bool ih_save_file_permissions(struct ino_hide *);
 bool ih_create_buf_events(struct ino_hide *);
-bool ih_loop_delete_restore_file_on_event(struct ino_hide *);
+bool ih_hide_file(struct ino_hide *);
 bool ih_worker_is_alive(struct ino_hide *);
 bool ih_worker_restart_delay(struct ino_hide *);
 bool ih_worker_delayed_delete(struct ino_hide *);

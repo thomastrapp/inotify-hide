@@ -16,6 +16,8 @@
 bool is_writable_file(const char *);
 bool is_regular_file(const char *);
 bool copy_fd(int, int);
+bool rewind_fd(int);
+bool set_file_ownership(int, uid_t, gid_t);
 size_t get_max_name_len(void);
 
 #endif

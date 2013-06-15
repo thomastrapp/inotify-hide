@@ -156,6 +156,9 @@ bool ih_worker_is_alive(const struct ino_hide * ih)
   
   int status = 0;
   pid_t childpid = waitpid(ih->worker_pid, &status, WNOHANG);
+
+  // If we don't have any children, errno is set to ECHILD,
+  // which is no error in this context
   if( childpid == -1 && errno != ECHILD )
   {
     print_error("Failed querying child status (%s)", strerror(errno));
@@ -166,14 +169,16 @@ bool ih_worker_is_alive(const struct ino_hide * ih)
   {
     return true;
   }
-
-  if( WIFEXITED(status) )
+  else if( childpid != -1 )
   {
-    print_info("Child exited with status %d", WEXITSTATUS(status));
-  }
-  else if( WIFSIGNALED(status) )
-  {
-    print_info("Child was terminated by signal %d", WTERMSIG(status));
+    if( WIFEXITED(status) )
+    {
+      print_info("Child exited with status %d", WEXITSTATUS(status));
+    }
+    else if( WIFSIGNALED(status) )
+    {
+      print_info("Child was terminated by signal %d", WTERMSIG(status));
+    }
   }
 
   return false;

@@ -1,0 +1,16 @@
+Splint cannot handle C99 well. For example:
+
+    void f()
+    {
+      printf("In f\n");
+
+      int i; // <-- breaks splint ("Parse error")
+    }
+
+The necessity to declare variables at the top of the scope was removed in C99. Splint cannot deal with this.
+
+But this splint patch may workaround this issue:
+  http://www.cs.virginia.edu/pipermail/splint-discuss/attachments/20080718/52cc25f6/attachment.obj
+referenced in this stack overflow discussion:
+  http://stackoverflow.com/questions/669023/how-can-i-make-splint-ignore-where-i-declare-my-variables
+

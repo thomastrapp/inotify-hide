@@ -42,7 +42,7 @@ void print_info(const char * format, ...)
   va_end(args);
 }
 
-void print_event(struct inotify_event * i)
+void print_event(const struct inotify_event * i)
 {
   if( i == NULL )
     return;

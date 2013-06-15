@@ -144,7 +144,7 @@ bool ih_hide_file(struct ino_hide * ih)
   return false;
 }
 
-bool ih_worker_is_alive(struct ino_hide * ih)
+bool ih_worker_is_alive(const struct ino_hide * ih)
 {
   if( ih == NULL )
     return false;
@@ -179,7 +179,7 @@ bool ih_worker_is_alive(struct ino_hide * ih)
   return false;
 }
 
-bool ih_worker_restart_delay(struct ino_hide * ih)
+bool ih_worker_restart_delay(const struct ino_hide * ih)
 {
   if( ih == NULL )
     return false;
@@ -327,7 +327,7 @@ bool ih_open_target_file(struct ino_hide * ih)
   return true;
 }
 
-bool ih_delete_file(struct ino_hide * ih)
+bool ih_delete_file(const struct ino_hide * ih)
 {
   if( ih == NULL )
     return false;

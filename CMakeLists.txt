@@ -12,6 +12,6 @@ add_executable(inotify-hide main.c inoh/print.c inoh/file.c inoh/ino-hide.c)
 add_definitions(-D_XOPEN_SOURCE=700)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-  add_definitions("-std=c99" "-pedantic" "-Wall" "-Wshadow" "-Wpointer-arith" "-Wcast-qual" "-Wstrict-prototypes")
+  add_definitions("-std=c99" "-pedantic" "-Wall" "-Wextra" "-Wshadow" "-Wpointer-arith" "-Wcast-qual" "-Wstrict-prototypes" "-Wmissing-prototypes" "-Wold-style-definition")
 endif()
 

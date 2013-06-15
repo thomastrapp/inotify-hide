@@ -232,7 +232,7 @@ bool ih_worker_delayed_delete(struct ino_hide * ih)
   return true;
 }
 
-bool ih_worker_block_sigusr()
+bool ih_worker_block_sigusr(void)
 {
   sigset_t set;
 
@@ -274,7 +274,7 @@ bool ih_worker_set_sigset(sigset_t * set)
   return true;
 }
 
-bool ih_worker_delay()
+bool ih_worker_delay(void)
 {
   sigset_t set;
   if( !ih_worker_set_sigset(&set) )

@@ -92,7 +92,7 @@ bool set_file_ownership(int fd, uid_t uid, gid_t gid)
   return true;
 }
 
-size_t get_max_name_len()
+size_t get_max_name_len(void)
 {
   // struct inotify_event may contain (optionally) the name
   // of the file that is subject to the event. To satisfy 

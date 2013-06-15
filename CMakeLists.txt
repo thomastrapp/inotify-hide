@@ -5,7 +5,7 @@ project(inotify-hide)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 
-add_executable(inotify-hide main.c inoh/print.c inoh/file.c inoh/ino-hide.c)
+add_executable(inotify-hide main.c inoh/print.c inoh/file.c inoh/ino-hide.c inoh/signal_handlers.c)
 
 # enable posix 2008 (probably only for strdup; if posix 2008 
 # is unavailable, -D_XOPEN_SOURCE=500 might suffice

@@ -38,13 +38,13 @@ bool ih_hide_file(struct ino_hide *);
 bool ih_worker_is_alive(struct ino_hide *);
 bool ih_worker_restart_delay(struct ino_hide *);
 bool ih_worker_delayed_delete(struct ino_hide *);
-bool ih_worker_block_sigusr(void);
+bool ih_worker_block_signals(void);
 bool ih_worker_set_sigset(sigset_t *);
 bool ih_worker_delay(void);
 bool ih_open_target_file(struct ino_hide *);
 bool ih_delete_file(struct ino_hide *);
 bool ih_restore_file(struct ino_hide *);
-bool ih_block_until_need_to_hide(struct ino_hide *);
+int ih_block_until_need_to_hide(struct ino_hide *);
 void ih_cleanup(struct ino_hide *);
 
 #endif

@@ -3,11 +3,9 @@
 #include <string.h>
 
 #include "inoh/print.h"
+#include "inoh/signal_handlers.h"
 #include "inoh/ino-hide.h"
 
-// Todo: 
-// - restore file atexit if in limbo
-// - register ctrl c to call atexit
 // Todo fancy:
 // - options: --verbose (print info, default be silent)
 int main(int argc, char ** argv)
@@ -15,20 +13,21 @@ int main(int argc, char ** argv)
   if( argc < 2 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0 )
   {
     print_error("Usage: %s file", argv[0]);
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
+
+  if( !sig_register_interrupt_handler() )
+    return EXIT_FAILURE;
 
   struct ino_hide ih;
 
   if( !ih_init(&ih, argv[1]) )
   {
-    exit(EXIT_FAILURE);
+    ih_cleanup(&ih);
+    return EXIT_FAILURE;
   }
 
-  if( !ih_hide_file(&ih) )
-  {
-    exit(EXIT_FAILURE);
-  }
+  ih_hide_file(&ih);
 
   if( ih_worker_is_alive(&ih) )
   {
@@ -38,6 +37,6 @@ int main(int argc, char ** argv)
 
   ih_cleanup(&ih);
 
-  return EXIT_SUCCESS;
+  return EXIT_FAILURE;
 }
 

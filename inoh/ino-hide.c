@@ -120,9 +120,12 @@ bool ih_hide_file(struct ino_hide * ih)
   if( ih == NULL )
     return false;
 
-  while( true )
+  int need_to_hide = -1;
+
+  do
   {
-    if( ih_block_until_need_to_hide(ih) )
+    need_to_hide = ih_block_until_need_to_hide(ih);
+    if( need_to_hide > 0 )
     {
       if( ih_worker_is_alive(ih) )
       {
@@ -136,8 +139,9 @@ bool ih_hide_file(struct ino_hide * ih)
       }
     }
   }
+  while( need_to_hide != -1 );
 
-  return true;
+  return false;
 }
 
 bool ih_worker_is_alive(struct ino_hide * ih)
@@ -152,7 +156,7 @@ bool ih_worker_is_alive(struct ino_hide * ih)
   
   int status = 0;
   pid_t childpid = waitpid(ih->worker_pid, &status, WNOHANG);
-  if( childpid == -1 )
+  if( childpid == -1 && errno != ECHILD )
   {
     print_error("Failed querying child status (%s)", strerror(errno));
     return false;
@@ -206,7 +210,7 @@ bool ih_worker_delayed_delete(struct ino_hide * ih)
     // in child
     print_info("Forked worker");
 
-    if( !ih_worker_block_sigusr() )
+    if( !ih_worker_block_signals() )
       _exit(EXIT_FAILURE);
 
     if( !ih_open_target_file(ih) )
@@ -232,7 +236,7 @@ bool ih_worker_delayed_delete(struct ino_hide * ih)
   return true;
 }
 
-bool ih_worker_block_sigusr(void)
+bool ih_worker_block_signals(void)
 {
   sigset_t set;
 
@@ -271,6 +275,12 @@ bool ih_worker_set_sigset(sigset_t * set)
     return false;
   }
 
+  if( sigaddset(set, SIGINT) == -1 )
+  {
+    print_error("Failed adding SIGINT to sigset_t (%s)", strerror(errno));
+    return false;
+  }
+
   return true;
 }
 
@@ -286,6 +296,8 @@ bool ih_worker_delay(void)
   struct timespec timeout = {4L, 0L};
 
   int signal = sigtimedwait(&set, /* siginfo_t * info */ NULL, &timeout);
+
+  print_info("Worker received signal %d", signal);
 
   // If parent sent SIGUSR2, continue timeout
   if( signal == SIGUSR2 )
@@ -311,7 +323,6 @@ bool ih_open_target_file(struct ino_hide * ih)
   }
 
   ih->target_fd = target_fd;
-  print_info("Opened file %s", ih->target_fname);
 
   return true;
 }
@@ -326,6 +337,8 @@ bool ih_delete_file(struct ino_hide * ih)
     print_error("Failed unlinking file (%s)", strerror(errno));
     return false;
   }
+
+  print_info("Unlinked %s from filesystem", ih->target_fname);
 
   return true;
 }
@@ -377,10 +390,10 @@ bool ih_restore_file(struct ino_hide * ih)
   return true;
 }
 
-bool ih_block_until_need_to_hide(struct ino_hide * ih)
+int ih_block_until_need_to_hide(struct ino_hide * ih)
 {
   if( ih == NULL )
-    return false;
+    return -1;
 
   ssize_t bytes_read = 0;
   char * p_buf_events = NULL;
@@ -392,7 +405,7 @@ bool ih_block_until_need_to_hide(struct ino_hide * ih)
   if( bytes_read < 1 )
   {
     print_error("Reading inotify_fd failed (%s)", strerror(errno));
-    return false;
+    return -1;
   }
 
   p_buf_events = ih->buf_events;
@@ -412,7 +425,7 @@ bool ih_block_until_need_to_hide(struct ino_hide * ih)
 
   print_info("Need to hide: %d", need_to_hide);
 
-  return need_to_hide;
+  return (int)need_to_hide;
 }
 
 void ih_cleanup(struct ino_hide * ih)

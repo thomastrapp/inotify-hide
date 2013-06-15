@@ -27,7 +27,7 @@ struct ino_hide
   // child worker
   pid_t worker_pid;
 
-  struct permission perm;
+  struct file_attr fattr;
 };
 
 bool ih_init(struct ino_hide *, const char *);

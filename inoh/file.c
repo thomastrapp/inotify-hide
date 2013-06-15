@@ -8,12 +8,12 @@ bool is_writable_file(const char * file)
   return access(file, W_OK) == 0;
 }
 
-bool is_regular_file(const struct permission * perm)
+bool is_regular_file(const struct file_attr * fattr)
 {
-  if( perm == NULL )
+  if( fattr == NULL )
     return false;
 
-  return S_ISREG(perm->st_mode);
+  return S_ISREG(fattr->st_mode);
 }
 
 bool copy_fd(int fd_src, int fd_target)
@@ -57,9 +57,9 @@ bool rewind_fd(int fd)
   return true;
 }
 
-bool get_file_permissions(struct permission * perm, const char * fname)
+bool get_file_attributes(struct file_attr * fattr, const char * fname)
 {
-  if( perm == NULL )
+  if( fattr == NULL )
     return false;
 
   struct stat buf_stat;
@@ -70,9 +70,9 @@ bool get_file_permissions(struct permission * perm, const char * fname)
     return false;
   }
 
-  perm->st_mode = buf_stat.st_mode;
-  perm->st_uid = buf_stat.st_uid;
-  perm->st_gid = buf_stat.st_gid;
+  fattr->st_mode = buf_stat.st_mode;
+  fattr->st_uid = buf_stat.st_uid;
+  fattr->st_gid = buf_stat.st_gid;
 
   return true;
 }

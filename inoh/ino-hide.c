@@ -11,9 +11,9 @@ bool ih_init(struct ino_hide * ih, const char * target_fname)
   ih->buf_events = NULL;
   ih->buf_events_len = 0;
   ih->worker_pid = -1;
-  ih->perm.st_mode = -1;
-  ih->perm.st_uid = -1;
-  ih->perm.st_gid = -1;
+  ih->fattr.st_mode = -1;
+  ih->fattr.st_uid = -1;
+  ih->fattr.st_gid = -1;
 
   return 
        ih_init_inotify(ih) 
@@ -41,14 +41,14 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
   if( ih == NULL || target_fname == NULL )
     return false;
 
-  struct permission perm = {0};
-  if( !get_file_permissions(&perm, target_fname) )
+  struct file_attr fattr = {0};
+  if( !get_file_attributes(&fattr, target_fname) )
     return false;
 
   // The file to be hidden must be writable, since
   // we will delete it (and restore it later)
   if(    is_writable_file(target_fname) 
-      && is_regular_file(&perm)         )
+      && is_regular_file(&fattr)        )
   {
     // dirname(char * path) may modify the contents of path,
     // so we create a copy here
@@ -66,7 +66,7 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
     else
     {
       ih->target_fname = target_fname;
-      ih->perm = perm;
+      ih->fattr = fattr;
       free(fname_copy);
       return true;
     }
@@ -366,14 +366,14 @@ bool ih_restore_file(struct ino_hide * ih)
     print_error("Close hiddenfile failed (%s)", strerror(errno));
 
   print_info("Recreating file");
-  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->perm.st_mode);
+  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->fattr.st_mode);
   if( new_fd == -1 )
   {
     print_error("Creating file %s failed (%s)", ih->target_fname, strerror(errno));
     return false;
   }
 
-  set_file_ownership(new_fd, ih->perm.st_uid, ih->perm.st_gid);
+  set_file_ownership(new_fd, ih->fattr.st_uid, ih->fattr.st_gid);
 
   if( !rewind_fd(tmp_fd) )
     return false;

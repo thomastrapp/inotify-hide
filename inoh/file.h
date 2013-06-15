@@ -13,7 +13,7 @@
 
 #include "inoh/print.h"
 
-struct permission
+struct file_attr
 {
   mode_t st_mode;
   uid_t st_uid;
@@ -21,10 +21,10 @@ struct permission
 };
 
 bool is_writable_file(const char *);
-bool is_regular_file(const struct permission *);
+bool is_regular_file(const struct file_attr *);
 bool copy_fd(int, int);
 bool rewind_fd(int);
-bool get_file_permissions(struct permission *, const char *);
+bool get_file_attributes(struct file_attr *, const char *);
 bool set_file_ownership(int, uid_t, gid_t);
 size_t get_max_name_len(void);
 

@@ -3,8 +3,9 @@
 #include <string.h>
 
 #include "inoh/print.h"
-#include "inoh/signal_handlers.h"
+#include "inoh/signal-handlers.h"
 #include "inoh/ino-hide.h"
+#include "inoh/ino-hide-worker.h"
 
 // Todo fancy:
 // - options: --verbose (print info, default be silent)

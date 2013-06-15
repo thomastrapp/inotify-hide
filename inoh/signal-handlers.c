@@ -1,4 +1,4 @@
-#include "signal_handlers.h"
+#include "inoh/signal-handlers.h"
 
 void sig_interrupt_handler(int signal)
 {

@@ -30,18 +30,16 @@ struct ino_hide
   struct file_attr fattr;
 };
 
+extern bool ih_worker_is_alive(const struct ino_hide *);
+extern bool ih_worker_restart_delay(const struct ino_hide *);
+extern bool ih_worker_delayed_delete(struct ino_hide *);
+
 bool ih_init(struct ino_hide *, const char *);
 bool ih_init_inotify(struct ino_hide *);
 bool ih_register_file(struct ino_hide *, const char *);
 bool ih_create_buf_events(struct ino_hide *);
 bool ih_hide_file(struct ino_hide *);
-bool ih_worker_is_alive(const struct ino_hide *);
-bool ih_worker_restart_delay(const struct ino_hide *);
-bool ih_worker_delayed_delete(struct ino_hide *);
-bool ih_worker_block_signals(void);
-bool ih_worker_set_sigset(sigset_t *);
-bool ih_worker_delay(void);
-bool ih_open_target_file(struct ino_hide *);
+bool ih_open_file(struct ino_hide *);
 bool ih_delete_file(const struct ino_hide *);
 bool ih_restore_file(struct ino_hide *);
 int ih_block_until_need_to_hide(struct ino_hide *);

@@ -10,10 +10,10 @@ bool ih_init(struct ino_hide * ih, const char * target_fname)
   ih->inotify_fd = -1;
   ih->buf_events = NULL;
   ih->buf_events_len = 0;
-  ih->st_mode = -1;
-  ih->st_uid = -1;
-  ih->st_gid = -1;
   ih->worker_pid = -1;
+  ih->perm.st_mode = -1;
+  ih->perm.st_uid = -1;
+  ih->perm.st_gid = -1;
 
   return 
        ih_init_inotify(ih) 
@@ -41,10 +41,14 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
   if( ih == NULL || target_fname == NULL )
     return false;
 
-  // The field to be hidden must be writable, since
+  struct permission perm = {0};
+  if( !get_file_permissions(&perm, target_fname) )
+    return false;
+
+  // The file to be hidden must be writable, since
   // we will delete it (and restore it later)
-  if( is_writable_file(target_fname) && 
-      is_regular_file(target_fname)     )
+  if(    is_writable_file(target_fname) 
+      && is_regular_file(&perm)         )
   {
     // dirname(char * path) may modify the contents of path,
     // so we create a copy here
@@ -62,33 +66,17 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
     else
     {
       ih->target_fname = target_fname;
+      ih->perm = perm;
       free(fname_copy);
-      return ih_save_file_permissions(ih);
+      return true;
     }
   }
   else
   {
-    print_error("File %s is either not a regular file or not writable", target_fname);
+    print_error("File %s is neither a regular file nor writable", target_fname);
   }
 
   return false;
-}
-
-bool ih_save_file_permissions(struct ino_hide * ih)
-{
-  struct stat buf_stat;
-
-  if( stat(ih->target_fname, &buf_stat) != 0 )
-  {
-    print_error("stat %s failed (%s)", ih->target_fname, strerror(errno));
-    return false;
-  }
-
-  ih->st_mode = buf_stat.st_mode;
-  ih->st_uid = buf_stat.st_uid;
-  ih->st_gid = buf_stat.st_gid;
-
-  return true;
 }
 
 bool ih_create_buf_events(struct ino_hide * ih)
@@ -365,14 +353,14 @@ bool ih_restore_file(struct ino_hide * ih)
     print_error("Close hiddenfile failed (%s)", strerror(errno));
 
   print_info("Recreating file");
-  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->st_mode);
+  int new_fd = open(ih->target_fname, O_CREAT|O_RDWR|O_EXCL, ih->perm.st_mode);
   if( new_fd == -1 )
   {
     print_error("Creating file %s failed (%s)", ih->target_fname, strerror(errno));
     return false;
   }
 
-  set_file_ownership(new_fd, ih->st_uid, ih->st_gid);
+  set_file_ownership(new_fd, ih->perm.st_uid, ih->perm.st_gid);
 
   if( !rewind_fd(tmp_fd) )
     return false;

@@ -2,20 +2,18 @@
 
 bool is_writable_file(const char * file)
 {
+  if( file == NULL )
+    return false;
+
   return access(file, W_OK) == 0;
 }
 
-bool is_regular_file(const char * file)
+bool is_regular_file(const struct permission * perm)
 {
-  struct stat buf_stat;
-
-  if( stat(file, &buf_stat) != 0 )
-  {
-    print_error("stat %s failed (%s)", file, strerror(errno));
+  if( perm == NULL )
     return false;
-  }
 
-  return S_ISREG(buf_stat.st_mode);
+  return S_ISREG(perm->st_mode);
 }
 
 bool copy_fd(int fd_src, int fd_target)
@@ -55,6 +53,26 @@ bool rewind_fd(int fd)
     print_error("Failed seeking to file offset 0 (%s)", strerror(errno));
     return false;
   }
+
+  return true;
+}
+
+bool get_file_permissions(struct permission * perm, const char * fname)
+{
+  if( perm == NULL )
+    return false;
+
+  struct stat buf_stat;
+
+  if( stat(fname, &buf_stat) != 0 )
+  {
+    print_error("stat %s failed (%s)", fname, strerror(errno));
+    return false;
+  }
+
+  perm->st_mode = buf_stat.st_mode;
+  perm->st_uid = buf_stat.st_uid;
+  perm->st_gid = buf_stat.st_gid;
 
   return true;
 }

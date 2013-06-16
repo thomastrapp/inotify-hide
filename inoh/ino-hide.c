@@ -41,7 +41,7 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
   if( ih == NULL || target_fname == NULL )
     return false;
 
-  struct file_attr fattr = {0};
+  struct file_attr fattr = {-1, -1, -1};
   if( !get_file_attributes(&fattr, target_fname) )
     return false;
 

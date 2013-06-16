@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# build all builds:
+#   build/debug/
+#   build/release/
+#   ...
+
 set -o pipefail
 
 red_f=$(tput setaf 1)
@@ -7,13 +12,6 @@ hl_f=$(tput setaf 5)
 bold=$(tput bold)
 hl_reset=$(tput op)
 hl_reset_all=$(tput sgr0)
-
-declare -A builds
-
-builds[release]=""
-builds[debug]="-DCMAKE_BUILD_TYPE=Debug"
-#builds[scan_build]="-DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/usr/share/clang/scan-build/ccc-analyzer"
-builds[scan_build]="-DCMAKE_C_COMPILER=/usr/share/clang/scan-build/ccc-analyzer"
 
 print_usage()
 {
@@ -38,6 +36,11 @@ assert_preconditions()
 [ $# -eq 1 ] || { print_usage ; exit 0; }
 
 assert_preconditions "$1"
+
+declare -A builds
+builds[release]="-DCMAKE_BUILD_TYPE=Release"
+builds[debug]="-DCMAKE_BUILD_TYPE=Debug"
+builds[scan_build]="-DSCAN_BUILD=ON"
 
 cd "$1" || {
   echo >&2 "Failed changing working directory to $1"; exit 1; 
@@ -71,12 +74,16 @@ for build_type in "${!builds[@]}" ; do
   }
 
   make clean 2> /dev/null
+  # there's no "cmake clean"
+  find . -iname "*cmake*" -exec rm -rf {} \+
 
   cmake "${builds[$build_type]}" ../../ | sed "s/^/    /" || {
     echo >&2 "cmake ${builds[$build_type]} failed in build $build_type"; 
     exit 1;
   }
 
+  # note the environment variable "CCC_CC=clang":
+  # if it is not set to clang on my system, cmake will fall back to gcc
   if [ "$build_type" == "scan_build" ] ; then
     CCC_CC=clang scan-build make | sed "s/^/    /" || {
       echo >&2 "scan-build make failed in build $build_type"; 
@@ -90,7 +97,7 @@ for build_type in "${!builds[@]}" ; do
   fi
 
   cd .. || {
-    echo >&2 "Failed leaving build"; exit 1;
+    echo >&2 "Failed leaving build directory"; exit 1;
   }
 done
 

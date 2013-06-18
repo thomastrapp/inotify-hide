@@ -12,7 +12,7 @@ if(SCAN_BUILD)
 endif(SCAN_BUILD)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-  add_definitions("-std=c99" "-pedantic" "-Wall" "-Wextra" "-Wshadow" "-Wpointer-arith" "-Wcast-qual" "-Wstrict-prototypes" "-Wmissing-prototypes" "-Wold-style-definition")
+  add_definitions("-std=c99" "-pedantic" "-Wall" "-Wextra" "-Wshadow" "-Wpointer-arith" "-Wcast-qual" "-Wstrict-prototypes" "-Wmissing-prototypes" "-Wold-style-definition" "-Wpadded" "-Wcast-align")
 endif(CMAKE_COMPILER_IS_GNUCXX)
 
 include_directories("${PROJECT_SOURCE_DIR}")

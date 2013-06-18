@@ -11,9 +11,9 @@ bool ih_init(struct ino_hide * ih, const char * target_fname)
   ih->buf_events = NULL;
   ih->buf_events_len = 0;
   ih->worker_pid = -1;
-  ih->fattr.st_mode = -1;
-  ih->fattr.st_uid = -1;
-  ih->fattr.st_gid = -1;
+  ih->fattr.st_mode = 0;
+  ih->fattr.st_uid = 0;
+  ih->fattr.st_gid = 0;
 
   return 
        ih_init_inotify(ih) 
@@ -41,7 +41,7 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
   if( ih == NULL || target_fname == NULL )
     return false;
 
-  struct file_attr fattr = {-1, -1, -1};
+  struct file_attr fattr;
   if( !get_file_attributes(&fattr, target_fname) )
     return false;
 
@@ -91,18 +91,17 @@ bool ih_create_buf_events(struct ino_hide * ih)
   // system (_PC_NAME_MAX).
   size_t name_max = get_max_name_len();
   
-  // We only care about the first 10 events that happened  
+  // We only care about the first 2 events that happened
   // since the previous call to read. Events may get lost.
-  int max_events_per_read = 10;
+  const size_t max_events_per_read = 2;
 
-  size_t buf_events_len = 
-      max_events_per_read 
-    * sizeof(struct inotify_event) 
-    + name_max 
+  size_t buf_events_len =
+      sizeof(struct inotify_event)
+    + name_max
     + 1
   ;
 
-  char * buf_events = (char *)calloc(1, buf_events_len);
+  char * buf_events = (char *)calloc(max_events_per_read, buf_events_len);
   if( buf_events == NULL )
   {
     print_error("Failed to allocate %zd bytes\n", buf_events_len);
@@ -110,7 +109,7 @@ bool ih_create_buf_events(struct ino_hide * ih)
   }
 
   ih->buf_events = buf_events;
-  ih->buf_events_len = buf_events_len;
+  ih->buf_events_len = buf_events_len * max_events_per_read;
 
   return true;
 }
@@ -234,7 +233,9 @@ int ih_block_until_need_to_hide(struct ino_hide * ih)
   char * p_buf_events = NULL;
   struct inotify_event * event = NULL;
   bool need_to_hide = false;
+  char my_buf[4096];
 
+  ih->buf_events = &my_buf[0];
   bytes_read = read(ih->inotify_fd, ih->buf_events, ih->buf_events_len);
 
   if( bytes_read < 1 )
@@ -246,7 +247,15 @@ int ih_block_until_need_to_hide(struct ino_hide * ih)
   p_buf_events = ih->buf_events;
   while( p_buf_events < ih->buf_events + bytes_read )
   {
-    event = (struct inotify_event *) p_buf_events;
+    // (struct inotify_event *)p_buf_events:
+    // p_buf_events is type of char *
+    // clang complains this cast changes alignment:
+    // warning: cast from 'char *' to 'struct inotify_event *' increases
+    //          required alignment from 1 to 4 [-Wcast-align]
+    // (gcc gives no such warning with -Wcast-align)
+    // But: p_buf_events is allocated with calloc, which is guaranteed to
+    // give the widest possible alignment.
+    event = (struct inotify_event *)p_buf_events;
 
     // event->len will only be 0 if the watched directory itself 
     // is subject to the event (filter out noise from the directory's 

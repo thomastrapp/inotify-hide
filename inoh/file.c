@@ -36,7 +36,7 @@ bool copy_fd(int fd_src, int fd_target)
       return false;
     }
 
-    if( write(fd_target, &buffer, byte_count) != byte_count )
+    if( write(fd_target, &buffer, (size_t)byte_count) != byte_count )
     {
       print_error("Failed writing file (%s)", strerror(errno));
       return false;

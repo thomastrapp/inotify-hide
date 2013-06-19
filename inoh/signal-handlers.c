@@ -2,8 +2,7 @@
 
 void sig_interrupt_handler(int signal)
 {
-  // Tell gcc we don't care that paramter "int signal" is
-  // not used in this function 
+  // Parameter signal is unused 
   (void)signal;
 
   // Don't mess up global variable errno in this 

@@ -50,26 +50,53 @@ bool ih_register_file(struct ino_hide * ih, const char * target_fname)
   if(    is_writable_file(target_fname) 
       && is_regular_file(&fattr)        )
   {
-    // dirname(char * path) may modify the contents of path,
-    // so we create a copy here
-    char * fname_copy = strdup(target_fname);
-    char * dir = dirname(fname_copy);
+    const int max_parent_watches = 3;
 
-    print_info("Adding watch for %s", dir);
-
-    if( inotify_add_watch(ih->inotify_fd, dir, IN_OPEN|IN_EXCL_UNLINK) == -1 )
+    const long path_max = pathconf(target_fname, _PC_PATH_MAX);
+    if( path_max < 1 )
     {
-      print_error("inotify_add_watch failed (%s)", strerror(errno));
-      free(fname_copy);
+      print_error("Failed getting max path len via pathconf (%s)", strerror(errno));
       return false;
     }
-    else
+
+    char * dir = (char *)malloc((size_t)path_max);
+    if( dir == NULL )
     {
-      ih->target_fname = target_fname;
-      ih->fattr = fattr;
-      free(fname_copy);
-      return true;
+      print_error("Failed allocating %zd bytes (%s)", path_max, strerror(errno));
+      return false;
     }
+
+    if( realpath(target_fname, dir) == NULL )
+    {
+      print_error("Failed getting realpath (%s)", strerror(errno));
+      return false;
+    }
+
+    int i = 0;
+    do
+    {
+      dir = dirname(dir);
+
+      if( strcmp(dir, "/") == 0 )
+        break;
+
+      print_info("Adding watch for %s", dir);
+      if( inotify_add_watch(ih->inotify_fd, dir, IN_OPEN|IN_EXCL_UNLINK) == -1 )
+      {
+        print_error("inotify_add_watch failed (%s)", strerror(errno));
+        free(dir);
+        return false;
+      }
+
+      ++i;
+    }
+    while( i < max_parent_watches );
+
+    ih->target_fname = target_fname;
+    ih->fattr = fattr;
+    free(dir);
+
+    return ( i > 0 );
   }
   else
   {
@@ -96,12 +123,13 @@ bool ih_create_buf_events(struct ino_hide * ih)
   const size_t max_events_per_read = 2;
 
   size_t buf_events_len =
-      sizeof(struct inotify_event)
-    + name_max
-    + 1
+      max_events_per_read 
+    * (
+        sizeof(struct inotify_event) + name_max + 1
+      )
   ;
 
-  char * buf_events = (char *)calloc(max_events_per_read, buf_events_len);
+  char * buf_events = (char *)calloc(1, buf_events_len);
   if( buf_events == NULL )
   {
     print_error("Failed to allocate %zd bytes\n", buf_events_len);
@@ -109,7 +137,7 @@ bool ih_create_buf_events(struct ino_hide * ih)
   }
 
   ih->buf_events = buf_events;
-  ih->buf_events_len = buf_events_len * max_events_per_read;
+  ih->buf_events_len = buf_events_len;
 
   return true;
 }
@@ -120,7 +148,6 @@ bool ih_hide_file(struct ino_hide * ih)
     return false;
 
   int need_to_hide = -1;
-
   do
   {
     need_to_hide = ih_block_until_need_to_hide(ih);
@@ -233,9 +260,7 @@ int ih_block_until_need_to_hide(struct ino_hide * ih)
   char * p_buf_events = NULL;
   struct inotify_event * event = NULL;
   bool need_to_hide = false;
-  char my_buf[4096];
 
-  ih->buf_events = &my_buf[0];
   bytes_read = read(ih->inotify_fd, ih->buf_events, ih->buf_events_len);
 
   if( bytes_read < 1 )
@@ -254,7 +279,7 @@ int ih_block_until_need_to_hide(struct ino_hide * ih)
     //          required alignment from 1 to 4 [-Wcast-align]
     // (gcc gives no such warning with -Wcast-align)
     // But: p_buf_events is allocated with calloc, which is guaranteed to
-    // give the widest possible alignment.
+    // give the widest possible alignment. Soooo.... hmm.
     event = (struct inotify_event *)p_buf_events;
 
     // event->len will only be 0 if the watched directory itself 

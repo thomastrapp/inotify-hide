@@ -27,8 +27,10 @@ Detailed description:
   available (excluding /)
 - If one of those directories is accessed:
   - If there's already a child process: Tell it to wait some more
-  - Else create a child process that waits a few seconds and then restores the
-    file
+  - Else 
+    - open the file, keep file descriptor, unlink the file
+    - create a child process that waits a few seconds and then restores the
+      file
 - Handle termination gracefully
 
 Usage:

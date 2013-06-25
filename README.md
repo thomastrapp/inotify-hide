@@ -37,11 +37,12 @@ Usage:
 
     ./inotify-hide secretfile
 
-  Hit `CTRL+C` to stop execution. If the file is currently hidden, it will be restored.
+  Hit `CTRL+C` to stop execution. If the file is currently hidden, it will be 
+  restored.
 
 Dependencies:
 --------------
-  *  gcc, C99, Linux >= 2.6.13
+  Linux >= 2.6.13 (inotify)
 
 Compilation:
 -------------
@@ -58,6 +59,9 @@ Compilation:
 
     make
 
-  If all goes well there's now a binary called `inotify-hide` in the current directory. 
+  If all goes well there's now a binary called `inotify-hide` in the current 
+  directory. 
 
+  There's also a build script in `scripts/build.sh`, that creates a debug,
+  release and a scan-build (clang static analyzer). Use it a your own risk.
 

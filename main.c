@@ -7,11 +7,14 @@
 #include "inoh/ino-hide.h"
 #include "inoh/ino-hide-worker.h"
 
-// Todo fancy:
-// - options: --verbose (print info, default be silent)
+// todo fancy:
+// - centralized configuration (wait time, amount of directories to 
+//   watch, verbosity, ...)
+// - configuration options on command line
 int main(int argc, char ** argv)
 {
-  if( argc < 2 || strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0 )
+  if( argc < 2 || strcmp(argv[1], "--help") == 0 
+               || strcmp(argv[1], "-h")     == 0 )
   {
     print_error("Usage: %s <file>\n"
                 "       Delete <file> and (maybe) restore", argv[0]);

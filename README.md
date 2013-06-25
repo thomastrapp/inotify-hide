@@ -1,4 +1,4 @@
-Inotify hide
+Inotify Hide
 ====================
 
 Copyright 2013 Thomas Trapp, http://www.thomastrapp.com

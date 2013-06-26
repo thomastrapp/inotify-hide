@@ -265,7 +265,9 @@ int ih_block_until_need_to_hide(struct ino_hide * ih)
 
   if( bytes_read < 1 )
   {
-    print_error("Reading inotify_fd failed (%s)", strerror(errno));
+    if( errno != EINTR )
+      print_error("Reading inotify_fd failed (%s)", strerror(errno));
+
     return -1;
   }
 

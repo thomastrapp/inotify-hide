@@ -9,7 +9,7 @@ Version 2. See COPYING for full license text.
 inotify-hide lets you hide a file from nosy eyes. inotify-hide does this by 
 deleting the file (but keeping a handle to prevent the data from being freed)
 whenever the parent directories get accessed. After a fixed time interval has
-passed with no further access, the file is restored by coping its contents
+passed with no further access, the file is restored by copying its contents
 back to the original location.
 
 `Warning:` Don't use this on files you cannot afford to lose. In case of a system
@@ -18,8 +18,7 @@ I was just curious to see how well this idea works in practice.
 
 Original idea by *Metlstorm* as demonstrated in his talk [Ain't No Party Like 
 A Unix Party](http://lca2013.linux.org.au/schedule/30244/view_talk) at 
-linux.conf.au in 2013. Download the video [here](http://mirror.linux.org.au/
-linux.conf.au/2013/ogv/Aint_No_Party_Like_A_Unix_Party.ogv).
+linux.conf.au in 2013. Download the video [here](http://mirror.linux.org.au/linux.conf.au/2013/ogv/Aint_No_Party_Like_A_Unix_Party.ogv).
 
 Detailed description:
 ---------------------
